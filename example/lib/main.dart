@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:telephony/telephony.dart';
 
-onBackgroundMessage(SmsMessage message) {
+onBackgroundMessage(Message message) {
   debugPrint("onBackgroundMessage called");
 }
 
@@ -25,7 +25,7 @@ class _MyAppState extends State<MyApp> {
     initPlatformState();
   }
 
-  onMessage(SmsMessage message) async {
+  onMessage(Message message) async {
     setState(() {
       _message = message.body ?? "Error reading message body.";
     });

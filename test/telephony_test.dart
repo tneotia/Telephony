@@ -224,18 +224,18 @@ main() {
     group("smsMessage fromMap should", () {
       test("correctly parse SmsType", () {
         final columns = DEFAULT_SMS_COLUMNS.toList();
-        columns.add(SmsColumn.TYPE);
+        columns.add(MessageColumn.TYPE);
         final message = mockMessageWithSmsType;
-        final sms = SmsMessage.fromMap(message, columns);
+        final sms = Message.fromMap(message, columns);
 
-        expect(sms.type, equals(SmsType.MESSAGE_TYPE_INBOX));
+        expect(sms.type, equals(MessageType.MESSAGE_TYPE_INBOX));
       });
 
       test("correctly parse SmsType when tryParse returns null", () {
         final columns = DEFAULT_SMS_COLUMNS.toList();
-        columns.add(SmsColumn.TYPE);
+        columns.add(MessageColumn.TYPE);
         final message = mockMessageWithInvalidSmsType;
-        final sms = SmsMessage.fromMap(message, columns);
+        final sms = Message.fromMap(message, columns);
 
         expect(sms.type, equals(null));
       });
@@ -257,21 +257,21 @@ main() {
 
         expect(
             inbox[0].equals(
-                SmsMessage.fromMap(mockMessages[0], DEFAULT_SMS_COLUMNS)),
+                Message.fromMap(mockMessages[0], DEFAULT_SMS_COLUMNS)),
             isTrue);
         expect(
             inbox[1].equals(
-                SmsMessage.fromMap(mockMessages[1], DEFAULT_SMS_COLUMNS)),
+                Message.fromMap(mockMessages[1], DEFAULT_SMS_COLUMNS)),
             isTrue);
       });
 
       test("inbox with filters", () async {
-        final columns = [SmsColumn.ID, SmsColumn.ADDRESS];
-        final SmsFilter filter = SmsFilter.where(SmsColumn.ID)
+        final columns = [MessageColumn.ID, MessageColumn.ADDRESS];
+        final SmsFilter filter = SmsFilter.where(MessageColumn.ID)
             .equals("3")
-            .and(SmsColumn.ADDRESS)
+            .and(MessageColumn.ADDRESS)
             .like("mess");
-        final sortOrder = [OrderBy(SmsColumn.ID, sort: Sort.ASC)];
+        final sortOrder = [OrderBy(MessageColumn.ID, sort: Sort.ASC)];
 
         final args = {
           "projection": ["_id", "address"],
@@ -288,9 +288,9 @@ main() {
             columns: columns, filter: filter, sortOrder: sortOrder);
         verify(await methodChannel.invokeMethod(GET_ALL_INBOX_SMS, args))
             .called(1);
-        expect(inbox[0].equals(SmsMessage.fromMap(mockMessages[0], columns)),
+        expect(inbox[0].equals(Message.fromMap(mockMessages[0], columns)),
             isTrue);
-        expect(inbox[1].equals(SmsMessage.fromMap(mockMessages[1], columns)),
+        expect(inbox[1].equals(Message.fromMap(mockMessages[1], columns)),
             isTrue);
       });
 
@@ -309,21 +309,21 @@ main() {
 
         expect(
             sent[0].equals(
-                SmsMessage.fromMap(mockMessages[0], DEFAULT_SMS_COLUMNS)),
+                Message.fromMap(mockMessages[0], DEFAULT_SMS_COLUMNS)),
             isTrue);
         expect(
             sent[1].equals(
-                SmsMessage.fromMap(mockMessages[1], DEFAULT_SMS_COLUMNS)),
+                Message.fromMap(mockMessages[1], DEFAULT_SMS_COLUMNS)),
             isTrue);
       });
 
       test("sent with filters", () async {
-        final columns = [SmsColumn.ID, SmsColumn.ADDRESS];
-        final SmsFilter filter = SmsFilter.where(SmsColumn.ID)
+        final columns = [MessageColumn.ID, MessageColumn.ADDRESS];
+        final SmsFilter filter = SmsFilter.where(MessageColumn.ID)
             .equals("4")
-            .and(SmsColumn.DATE)
+            .and(MessageColumn.DATE)
             .greaterThan("12");
-        final sortOrder = [OrderBy(SmsColumn.ID, sort: Sort.ASC)];
+        final sortOrder = [OrderBy(MessageColumn.ID, sort: Sort.ASC)];
 
         final args = {
           "projection": ["_id", "address"],
@@ -340,9 +340,9 @@ main() {
             columns: columns, filter: filter, sortOrder: sortOrder);
         verify(await methodChannel.invokeMethod(GET_ALL_SENT_SMS, args))
             .called(1);
-        expect(sent[0].equals(SmsMessage.fromMap(mockMessages[0], columns)),
+        expect(sent[0].equals(Message.fromMap(mockMessages[0], columns)),
             isTrue);
-        expect(sent[1].equals(SmsMessage.fromMap(mockMessages[1], columns)),
+        expect(sent[1].equals(Message.fromMap(mockMessages[1], columns)),
             isTrue);
       });
 
@@ -361,21 +361,21 @@ main() {
 
         expect(
             drafts[0].equals(
-                SmsMessage.fromMap(mockMessages[0], DEFAULT_SMS_COLUMNS)),
+                Message.fromMap(mockMessages[0], DEFAULT_SMS_COLUMNS)),
             isTrue);
         expect(
             drafts[1].equals(
-                SmsMessage.fromMap(mockMessages[1], DEFAULT_SMS_COLUMNS)),
+                Message.fromMap(mockMessages[1], DEFAULT_SMS_COLUMNS)),
             isTrue);
       });
 
       test("draft with filters", () async {
-        final columns = [SmsColumn.ID, SmsColumn.ADDRESS];
-        final SmsFilter filter = SmsFilter.where(SmsColumn.ID)
+        final columns = [MessageColumn.ID, MessageColumn.ADDRESS];
+        final SmsFilter filter = SmsFilter.where(MessageColumn.ID)
             .equals("4")
-            .and(SmsColumn.DATE)
+            .and(MessageColumn.DATE)
             .greaterThan("12");
-        final sortOrder = [OrderBy(SmsColumn.ID, sort: Sort.ASC)];
+        final sortOrder = [OrderBy(MessageColumn.ID, sort: Sort.ASC)];
 
         final args = {
           "projection": ["_id", "address"],
@@ -392,9 +392,9 @@ main() {
             columns: columns, filter: filter, sortOrder: sortOrder);
         verify(await methodChannel.invokeMethod(GET_ALL_DRAFT_SMS, args))
             .called(1);
-        expect(drafts[0].equals(SmsMessage.fromMap(mockMessages[0], columns)),
+        expect(drafts[0].equals(Message.fromMap(mockMessages[0], columns)),
             isTrue);
-        expect(drafts[1].equals(SmsMessage.fromMap(mockMessages[1], columns)),
+        expect(drafts[1].equals(Message.fromMap(mockMessages[1], columns)),
             isTrue);
       });
 
@@ -413,11 +413,11 @@ main() {
             .called(1);
         expect(
             conversations[0]
-                .equals(SmsConversation.fromMap(mockConversations[0])),
+                .equals(Conversation.fromMap(mockConversations[0])),
             isTrue);
         expect(
             conversations[1]
-                .equals(SmsConversation.fromMap(mockConversations[1])),
+                .equals(Conversation.fromMap(mockConversations[1])),
             isTrue);
       });
 
@@ -449,24 +449,24 @@ main() {
             .called(1);
         expect(
             conversations[0]
-                .equals(SmsConversation.fromMap(mockConversations[0])),
+                .equals(Conversation.fromMap(mockConversations[0])),
             isTrue);
         expect(
             conversations[1]
-                .equals(SmsConversation.fromMap(mockConversations[1])),
+                .equals(Conversation.fromMap(mockConversations[1])),
             isTrue);
       });
     });
 
     group("should generate", () {
       test("sms filter statement", () async {
-        final SmsFilter statement = SmsFilter.where(SmsColumn.ADDRESS)
+        final SmsFilter statement = SmsFilter.where(MessageColumn.ADDRESS)
             .greaterThan("1")
-            .and(SmsColumn.ID)
+            .and(MessageColumn.ID)
             .greaterThanOrEqualTo("2")
-            .or(SmsColumn.DATE)
+            .or(MessageColumn.DATE)
             .between("3", "4")
-            .or(SmsColumn.TYPE)
+            .or(MessageColumn.TYPE)
             .not
             .like("5");
 

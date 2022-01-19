@@ -17,14 +17,16 @@ import com.shounakmulay.telephony.utils.Constants.SMS_BODY
 import com.shounakmulay.telephony.utils.Constants.SMS_DELIVERED_BROADCAST_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_SENT_BROADCAST_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_TO
-import com.shounakmulay.telephony.utils.ContentUri
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 
 class SmsController(private val context: Context) {
 
   // FETCH SMS
   fun getMessages(
-      contentUri: ContentUri,
+      contentUri: Uri,
       projection: List<String>,
       selection: String?,
       selectionArgs: List<String>?,
@@ -33,7 +35,7 @@ class SmsController(private val context: Context) {
     val messages = mutableListOf<HashMap<String, String?>>()
 
     val cursor = context.contentResolver.query(
-        contentUri.uri,
+        contentUri,
         projection.toTypedArray(),
         selection,
         selectionArgs?.toTypedArray(),
@@ -43,7 +45,7 @@ class SmsController(private val context: Context) {
     while (cursor != null && cursor.moveToNext()) {
       val dataObject = HashMap<String, String?>(projection.size)
       for (columnName in cursor.columnNames) {
-        val value = cursor.getString(cursor.getColumnIndex(columnName))
+        val value = cursor.getString(cursor.getColumnIndexOrThrow(columnName))
         dataObject[columnName] = value
       }
       messages.add(dataObject)

@@ -9,7 +9,7 @@ part 'constants.dart';
 
 part 'filter.dart';
 
-typedef MessageHandler(SmsMessage message);
+typedef MessageHandler(Message message);
 typedef SmsSendStatusListener(SendStatus status);
 
 void _flutterSmsSetupBackgroundChannel(
@@ -24,7 +24,7 @@ void _flutterSmsSetupBackgroundChannel(
       final Function handlerFunction =
           PluginUtilities.getCallbackFromHandle(handle)!;
       try {
-        await handlerFunction(SmsMessage.fromMap(
+        await handlerFunction(Message.fromMap(
             call.arguments['message'], INCOMING_SMS_COLUMNS));
       } catch (e) {
         print('Unable to handle incoming background message.');
@@ -144,7 +144,7 @@ class Telephony {
     switch (call.method) {
       case ON_MESSAGE:
         final message = call.arguments["message"];
-        return _onNewMessage(SmsMessage.fromMap(message, INCOMING_SMS_COLUMNS));
+        return _onNewMessage(Message.fromMap(message, INCOMING_SMS_COLUMNS));
       case SMS_SENT:
         return _statusListener(SendStatus.SENT);
       case SMS_DELIVERED:
@@ -159,15 +159,15 @@ class Telephony {
   ///
   /// Parameters:
   ///
-  /// - [columns] (optional) : List of [SmsColumn] to be returned by this query. Defaults to [ SmsColumn.ID, SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE ]
+  /// - [columns] (optional) : List of [MessageColumn] to be returned by this query. Defaults to [ SmsColumn.ID, SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE ]
   /// - [filter] (optional) : [SmsFilter] to filter the results of this query. Works like SQL WHERE clause.
   /// - [sortOrder] (optional): List of [OrderBy]. Orders the results of this query by the provided columns and order.
   ///
   /// Returns:
   ///
   /// [Future<List<SmsMessage>>]
-  Future<List<SmsMessage>> getInboxSms(
-      {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
+  Future<List<Message>> getInboxSms(
+      {List<MessageColumn> columns = DEFAULT_SMS_COLUMNS,
       SmsFilter? filter,
       List<OrderBy>? sortOrder}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
@@ -177,7 +177,7 @@ class Telephony {
         await _foregroundChannel.invokeMethod<List?>(GET_ALL_INBOX_SMS, args);
 
     return messages
-            ?.map((message) => SmsMessage.fromMap(message, columns))
+            ?.map((message) => Message.fromMap(message, columns))
             .toList(growable: false) ??
         List.empty();
   }
@@ -189,15 +189,15 @@ class Telephony {
   ///
   /// Parameters:
   ///
-  /// - [columns] (optional) : List of [SmsColumn] to be returned by this query. Defaults to [ SmsColumn.ID, SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE ]
+  /// - [columns] (optional) : List of [MessageColumn] to be returned by this query. Defaults to [ SmsColumn.ID, SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE ]
   /// - [filter] (optional) : [SmsFilter] to filter the results of this query. Works like SQL WHERE clause.
   /// - [sortOrder] (optional): List of [OrderBy]. Orders the results of this query by the provided columns and order.
   ///
   /// Returns:
   ///
   /// [Future<List<SmsMessage>>]
-  Future<List<SmsMessage>> getSentSms(
-      {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
+  Future<List<Message>> getSentSms(
+      {List<MessageColumn> columns = DEFAULT_SMS_COLUMNS,
       SmsFilter? filter,
       List<OrderBy>? sortOrder}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
@@ -207,7 +207,7 @@ class Telephony {
         await _foregroundChannel.invokeMethod<List?>(GET_ALL_SENT_SMS, args);
 
     return messages
-            ?.map((message) => SmsMessage.fromMap(message, columns))
+            ?.map((message) => Message.fromMap(message, columns))
             .toList(growable: false) ??
         List.empty();
   }
@@ -219,15 +219,15 @@ class Telephony {
   ///
   /// Parameters:
   ///
-  /// - [columns] (optional) : List of [SmsColumn] to be returned by this query. Defaults to [ SmsColumn.ID, SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE ]
+  /// - [columns] (optional) : List of [MessageColumn] to be returned by this query. Defaults to [ SmsColumn.ID, SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE ]
   /// - [filter] (optional) : [SmsFilter] to filter the results of this query. Works like SQL WHERE clause.
   /// - [sortOrder] (optional): List of [OrderBy]. Orders the results of this query by the provided columns and order.
   ///
   /// Returns:
   ///
   /// [Future<List<SmsMessage>>]
-  Future<List<SmsMessage>> getDraftSms(
-      {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
+  Future<List<Message>> getDraftSms(
+      {List<MessageColumn> columns = DEFAULT_SMS_COLUMNS,
       SmsFilter? filter,
       List<OrderBy>? sortOrder}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
@@ -237,13 +237,13 @@ class Telephony {
         await _foregroundChannel.invokeMethod<List?>(GET_ALL_DRAFT_SMS, args);
 
     return messages
-            ?.map((message) => SmsMessage.fromMap(message, columns))
+            ?.map((message) => Message.fromMap(message, columns))
             .toList(growable: false) ??
         List.empty();
   }
 
   ///
-  /// Query SMS Inbox.
+  /// Query Conversation Threads..
   ///
   /// ### Requires READ_SMS permission.
   ///
@@ -254,8 +254,8 @@ class Telephony {
   ///
   /// Returns:
   ///
-  /// [Future<List<SmsConversation>>]
-  Future<List<SmsConversation>> getConversations(
+  /// [Future<List<Conversation>>]
+  Future<List<Conversation>> getConversations(
       {ConversationFilter? filter, List<OrderBy>? sortOrder}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
     final args = _getArguments(DEFAULT_CONVERSATION_COLUMNS, filter, sortOrder);
@@ -264,9 +264,43 @@ class Telephony {
         GET_ALL_CONVERSATIONS, args);
 
     return conversations
-            ?.map((conversation) => SmsConversation.fromMap(conversation))
+            ?.map((conversation) => Conversation.fromMap(conversation))
             .toList(growable: false) ??
         List.empty();
+  }
+
+  Future<List<String?>> getAddressesForConversation(List<int> recipientIds) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final args = {
+      "ids": recipientIds
+    };
+
+    return ((await _foregroundChannel.invokeMethod<List<dynamic>>(GET_RECIPIENT_ADDRESSES, args)) ?? []).map((e) => e.toString()).toList();
+  }
+
+  Future<List<Message>> getMessagesForConversation(int threadId) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final args = {
+      "threadId": threadId
+    };
+
+    final messages = await _foregroundChannel.invokeMethod<List?>(GET_CONVERSATION_MESSAGES, args);
+
+    return messages
+        ?.map((message) => Message.fromMap(message, List.from(DEFAULT_SMS_COLUMNS)..addAll([MessageColumn.SUBJECT_2, MessageColumn.MESSAGE_BOX, MessageColumn.TYPE])))
+        .toList(growable: false) ??
+        List.empty();
+  }
+
+  Future<dynamic> getMmsData(int messageId) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final args = {
+      "messageId": messageId
+    };
+
+    final messages = await _foregroundChannel.invokeMethod<Map?>(GET_MMS_DATA, args);
+
+    print(messages.toString());
   }
 
   Map<String, dynamic> _getArguments(List<_TelephonyColumn> columns,
@@ -297,7 +331,7 @@ class Telephony {
   /// - [to] : Address to send the SMS to.
   /// - [message] : Message to be sent. If message body is longer than standard SMS length limits set appropriate
   /// value for [isMultipart]
-  /// - [statusListener] (optional) : Listen to the status of the sent SMS. Values can be one of [SmsStatus]
+  /// - [statusListener] (optional) : Listen to the status of the sent SMS. Values can be one of [MessageStatus]
   /// - [isMultipart] (optional) : If message body is longer than standard SMS limit of 160 characters, set this flag to
   /// send the SMS in multiple parts.
   Future<void> sendSms({
@@ -560,80 +594,91 @@ class Telephony {
 ///
 /// Represents a message returned by one of the query functions such as
 /// [getInboxSms], [getSentSms], [getDraftSms]
-class SmsMessage {
+class Message {
   int? id;
   String? address;
   String? body;
-  int? date;
-  int? dateSent;
+  DateTime? date;
+  DateTime? dateSent;
+  int? errorCode;
+  MessageMethod? method;
   bool? read;
   bool? seen;
   String? subject;
   int? subscriptionId;
   int? threadId;
-  SmsType? type;
-  SmsStatus? status;
+  MessageType? type;
+  MessageStatus? status;
 
   /// ## Do not call this method. This method is visible only for testing.
   @visibleForTesting
-  SmsMessage.fromMap(Map rawMessage, List<SmsColumn> columns) {
+  Message.fromMap(Map rawMessage, List<MessageColumn> columns) {
     final message = Map.castFrom<dynamic, dynamic, String, dynamic>(rawMessage);
     for (var column in columns) {
       final value = message[column._columnName];
       switch (column._columnName) {
-        case _SmsProjections.ID:
-          this.id = int.tryParse(value);
+        case _MessageProjections.ID:
+          this.id = int.tryParse(value ?? "");
           break;
-        case _SmsProjections.ORIGINATING_ADDRESS:
-        case _SmsProjections.ADDRESS:
+        case _MessageProjections.ORIGINATING_ADDRESS:
+        case _MessageProjections.ADDRESS:
           this.address = value;
           break;
-        case _SmsProjections.MESSAGE_BODY:
-        case _SmsProjections.BODY:
+        case _MessageProjections.MESSAGE_BODY:
+        case _MessageProjections.BODY:
           this.body = value;
           break;
-        case _SmsProjections.DATE:
-        case _SmsProjections.TIMESTAMP:
-          this.date = int.tryParse(value);
+        case _MessageProjections.DATE:
+        case _MessageProjections.TIMESTAMP:
+          final ms = int.tryParse(value ?? "");
+          this.date = ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
           break;
-        case _SmsProjections.DATE_SENT:
-          this.dateSent = int.tryParse(value);
+        case _MessageProjections.DATE_SENT:
+          final ms = int.tryParse(value ?? "");
+          this.dateSent = ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
           break;
-        case _SmsProjections.READ:
-          this.read = int.tryParse(value) == 0 ? false : true;
+        case _MessageProjections.ERROR_CODE:
+          this.errorCode = int.tryParse(value ?? "");
           break;
-        case _SmsProjections.SEEN:
-          this.seen = int.tryParse(value) == 0 ? false : true;
+        case _MessageProjections.MESSAGE_BOX:
+          this.method = value != null ? MessageMethod.MMS : MessageMethod.SMS;
           break;
-        case _SmsProjections.STATUS:
-          switch (int.tryParse(value)) {
+        case _MessageProjections.READ:
+          this.read = int.tryParse(value ?? "") == 0 ? false : true;
+          break;
+        case _MessageProjections.SEEN:
+          this.seen = int.tryParse(value ?? "") == 0 ? false : true;
+          break;
+        case _MessageProjections.STATUS:
+          switch (int.tryParse(value ?? "")) {
             case 0:
-              this.status = SmsStatus.STATUS_COMPLETE;
+              this.status = MessageStatus.STATUS_COMPLETE;
               break;
             case 32:
-              this.status = SmsStatus.STATUS_PENDING;
+              this.status = MessageStatus.STATUS_PENDING;
               break;
             case 64:
-              this.status = SmsStatus.STATUS_FAILED;
+              this.status = MessageStatus.STATUS_FAILED;
               break;
             case -1:
             default:
-              this.status = SmsStatus.STATUS_NONE;
+              this.status = MessageStatus.STATUS_NONE;
               break;
           }
           break;
-        case _SmsProjections.SUBJECT:
+        case _MessageProjections.SUBJECT:
+        case _MessageProjections.SUBJECT_2:
           this.subject = value;
           break;
-        case _SmsProjections.SUBSCRIPTION_ID:
-          this.subscriptionId = int.tryParse(value);
+        case _MessageProjections.SUBSCRIPTION_ID:
+          this.subscriptionId = int.tryParse(value ?? "");
           break;
-        case _SmsProjections.THREAD_ID:
-          this.threadId = int.tryParse(value);
+        case _MessageProjections.THREAD_ID:
+          this.threadId = int.tryParse(value ?? "");
           break;
-        case _SmsProjections.TYPE:
-          var smsTypeIndex = int.tryParse(value);
-          this.type = smsTypeIndex != null ? SmsType.values[smsTypeIndex] : null;
+        case _MessageProjections.TYPE:
+          var smsTypeIndex = int.tryParse(value ?? "");
+          this.type = smsTypeIndex != null ? MessageType.values[smsTypeIndex] : null;
           break;
       }
     }
@@ -641,7 +686,7 @@ class SmsMessage {
 
   /// ## Do not call this method. This method is visible only for testing.
   @visibleForTesting
-  bool equals(SmsMessage other) {
+  bool equals(Message other) {
     return this.id == other.id &&
         this.address == other.address &&
         this.body == other.body &&
@@ -660,37 +705,233 @@ class SmsMessage {
 ///
 /// Represents a conversation returned by the query conversation functions
 /// [getConversations]
-class SmsConversation {
-  String? snippet;
+class Conversation {
   int? threadId;
+  DateTime? date;
   int? messageCount;
+  List<int> recipientIds = [];
+  String? snippet;
+  int? snippetCs;
+  bool? read;
+  bool? archived;
+  int? type;
+  int? error;
+  bool? hasAttachment;
+  int? unreadCount;
+  bool? alertExpired;
+  bool? replyAll;
+  String? groupSnippet;
+  int? messageType;
+  List<int> displayRecipientIds = [];
+  int? translateMode;
+  int? secretMode;
+  int? safeMessage;
+  int? classification;
+  bool? isMute;
+  int? chatType;
+  String? paUuid;
+  int? paThread;
+  String? menustring;
+  bool? pinToTop;
+  int? usingMode;
+  String? fromAddress;
+  DateTime? messageDate;
+  String? paOwnnumber;
+  int? snippetType;
+  int? binStatus;
 
   /// ## Do not call this method. This method is visible only for testing.
   @visibleForTesting
-  SmsConversation.fromMap(Map rawConversation) {
+  Conversation.fromMap(Map rawConversation) {
     final conversation =
         Map.castFrom<dynamic, dynamic, String, dynamic>(rawConversation);
     for (var column in DEFAULT_CONVERSATION_COLUMNS) {
       final String? value = conversation[column._columnName];
       switch (column._columnName) {
+        case _ConversationProjections.THREAD_ID:
+          this.threadId = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.DATE:
+          final ms = int.tryParse(value ?? "");
+          this.date = ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+          break;
+        case _ConversationProjections.MESSAGE_COUNT:
+          this.messageCount = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.RECIPIENT_IDS:
+          this.recipientIds = (value ?? "").split(" ").map((e) => int.parse(e)).toList();
+          break;
         case _ConversationProjections.SNIPPET:
           this.snippet = value;
           break;
-        case _ConversationProjections.THREAD_ID:
-          this.threadId = int.tryParse(value!);
+        case _ConversationProjections.SNIPPET_CS:
+          this.snippetCs = int.tryParse(value ?? "");
           break;
-        case _ConversationProjections.MSG_COUNT:
-          this.messageCount = int.tryParse(value!);
+        case _ConversationProjections.READ:
+          final val = int.tryParse(value ?? "");
+          this.read = val == 1 ? true : val == 0 ? false : null;
+          break;
+        case _ConversationProjections.ARCHIVED:
+          final val = int.tryParse(value ?? "");
+          this.archived = val == 1 ? true : val == 0 ? false : null;
+          break;
+        case _ConversationProjections.TYPE:
+          this.type = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.ERROR:
+          this.error = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.HAS_ATTACHMENT:
+          final val = int.tryParse(value ?? "");
+          this.hasAttachment = val == 1 ? true : val == 0 ? false : null;
+          break;
+        case _ConversationProjections.UNREAD_COUNT:
+          this.unreadCount = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.ALERT_EXPIRED:
+          final val = int.tryParse(value ?? "");
+          this.alertExpired = val == 1 ? true : val == 0 ? false : null;
+          break;
+        case _ConversationProjections.REPLY_ALL:
+          final val = int.tryParse(value ?? "");
+          this.replyAll = val == 1 ? true : val == 0 ? false : null;
+          break;
+        case _ConversationProjections.GROUP_SNIPPET:
+          this.groupSnippet = value;
+          break;
+        case _ConversationProjections.MESSAGE_TYPE:
+          this.messageType = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.DISPLAY_RECIPIENT_IDS:
+          this.displayRecipientIds = (value ?? "").split(" ").map((e) => int.parse(e)).toList();
+          break;
+        case _ConversationProjections.TRANSLATE_MODE:
+          this.translateMode = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.SECRET_MODE:
+          this.secretMode = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.SAFE_MESSAGE:
+          this.safeMessage = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.CLASSIFICATION:
+          this.classification = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.IS_MUTE:
+          final val = int.tryParse(value ?? "");
+          this.isMute = val == 1 ? true : val == 0 ? false : null;
+          break;
+        case _ConversationProjections.CHAT_TYPE:
+          this.chatType = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.PA_UUID:
+          this.paUuid = value;
+          break;
+        case _ConversationProjections.PA_THREAD:
+          this.paThread = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.MENUSTRING:
+          this.menustring = value;
+          break;
+        case _ConversationProjections.PIN_TO_TOP:
+          final val = int.tryParse(value ?? "");
+          this.pinToTop = val == 1 ? true : val == 0 ? false : null;
+          break;
+        case _ConversationProjections.USING_MODE:
+          this.usingMode = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.FROM_ADDRESS:
+          this.fromAddress = value;
+          break;
+        case _ConversationProjections.MESSAGE_DATE:
+          final ms = int.tryParse(value ?? "");
+          this.messageDate = ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+          break;
+        case _ConversationProjections.PA_OWNNUMBER:
+          this.paOwnnumber = value;
+          break;
+        case _ConversationProjections.SNIPPET_TYPE:
+          this.snippetType = int.tryParse(value ?? "");
+          break;
+        case _ConversationProjections.BIN_STATUS:
+          this.binStatus = int.tryParse(value ?? "");
           break;
       }
     }
   }
 
-  /// ## Do not call this method. This method is visible only for testing.
-  @visibleForTesting
-  bool equals(SmsConversation other) {
-    return this.threadId == other.threadId &&
-        this.snippet == other.snippet &&
-        this.messageCount == other.messageCount;
-  }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Conversation &&
+          runtimeType == other.runtimeType &&
+          threadId == other.threadId &&
+          date == other.date &&
+          messageCount == other.messageCount &&
+          recipientIds == other.recipientIds &&
+          snippet == other.snippet &&
+          snippetCs == other.snippetCs &&
+          read == other.read &&
+          archived == other.archived &&
+          type == other.type &&
+          error == other.error &&
+          hasAttachment == other.hasAttachment &&
+          unreadCount == other.unreadCount &&
+          alertExpired == other.alertExpired &&
+          replyAll == other.replyAll &&
+          groupSnippet == other.groupSnippet &&
+          messageType == other.messageType &&
+          displayRecipientIds == other.displayRecipientIds &&
+          translateMode == other.translateMode &&
+          secretMode == other.secretMode &&
+          safeMessage == other.safeMessage &&
+          classification == other.classification &&
+          isMute == other.isMute &&
+          chatType == other.chatType &&
+          paUuid == other.paUuid &&
+          paThread == other.paThread &&
+          menustring == other.menustring &&
+          pinToTop == other.pinToTop &&
+          usingMode == other.usingMode &&
+          fromAddress == other.fromAddress &&
+          messageDate == other.messageDate &&
+          paOwnnumber == other.paOwnnumber &&
+          snippetType == other.snippetType &&
+          binStatus == other.binStatus;
+
+  @override
+  int get hashCode =>
+      threadId.hashCode ^
+      date.hashCode ^
+      messageCount.hashCode ^
+      recipientIds.hashCode ^
+      snippet.hashCode ^
+      snippetCs.hashCode ^
+      read.hashCode ^
+      archived.hashCode ^
+      type.hashCode ^
+      error.hashCode ^
+      hasAttachment.hashCode ^
+      unreadCount.hashCode ^
+      alertExpired.hashCode ^
+      replyAll.hashCode ^
+      groupSnippet.hashCode ^
+      messageType.hashCode ^
+      displayRecipientIds.hashCode ^
+      translateMode.hashCode ^
+      secretMode.hashCode ^
+      safeMessage.hashCode ^
+      classification.hashCode ^
+      isMute.hashCode ^
+      chatType.hashCode ^
+      paUuid.hashCode ^
+      paThread.hashCode ^
+      menustring.hashCode ^
+      pinToTop.hashCode ^
+      usingMode.hashCode ^
+      fromAddress.hashCode ^
+      messageDate.hashCode ^
+      paOwnnumber.hashCode ^
+      snippetType.hashCode ^
+      binStatus.hashCode;
 }

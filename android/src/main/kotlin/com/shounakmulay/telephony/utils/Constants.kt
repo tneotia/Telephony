@@ -23,6 +23,7 @@ object Constants {
   // Request Codes
   const val SMS_QUERY_REQUEST_CODE = 1
   const val SMS_SEND_REQUEST_CODE = 2
+  const val RECIPIENT_ADDRESS_REQUEST_CODE = 3
   const val SMS_SENT_BROADCAST_REQUEST_CODE = 21
   const val SMS_DELIVERED_BROADCAST_REQUEST_CODE = 22
   const val SMS_BACKGROUND_REQUEST_CODE = 31
@@ -48,6 +49,9 @@ object Constants {
   const val MESSAGE_BODY = "message_body"
   const val ADDRESS = "address"
   const val LISTEN_STATUS = "listen_status"
+  const val IDS = "ids"
+  const val THREAD_ID = "threadId"
+  const val MESSAGE_ID = "messageId"
 
   const val TIMESTAMP = "timestamp"
   const val ORIGINATING_ADDRESS = "originating_address"
@@ -60,8 +64,10 @@ object Constants {
 
   // Projections
   val DEFAULT_SMS_PROJECTION = listOf(Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE)
-  val DEFAULT_CONVERSATION_PROJECTION = listOf(Telephony.Sms.Conversations.THREAD_ID ,Telephony.Sms.Conversations.SNIPPET, Telephony.Sms.Conversations.MESSAGE_COUNT)
-  
+  val DEFAULT_CONVERSATION_PROJECTION = listOf(
+          "_id", "date", "message_count", "recipient_ids", "snippet", "snippet_cs", "read", "archived", "type", "error", "has_attachment", "unread_count", "alert_expired", "reply_all", "group_snippet", "message_type", "display_recipient_ids", "translate_mode", "secret_mode", "safe_message", "classification", "is_mute", "chat_type", "pa_uuid", "pa_thread", "menustring", "pin_to_top", "using_mode", "from_address", "message_date", "pa_ownnumber", "snippet_type", "bin_status")
+  val DEFAULT_CONVERSATION_MESSAGES_PROJECTION = listOf(Telephony.BaseMmsColumns._ID, Telephony.Mms.MESSAGE_BOX, Telephony.Sms.TYPE, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE, Telephony.Sms.ERROR_CODE, Telephony.Sms.STATUS, Telephony.Mms.SUBJECT)
+  val DEFAULT_MMS_DATA_PROJECTION = arrayOf(Telephony.Mms.Part._ID, Telephony.Mms.Part.CONTENT_TYPE, Telephony.Mms.Part.NAME, Telephony.Mms.Part._DATA, Telephony.Mms.Part.TEXT)
 
   // Strings
   const val PERMISSION_DENIED = "permission_denied"

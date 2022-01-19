@@ -8,6 +8,9 @@ enum class SmsAction(private val methodName: String) {
   GET_SENT("getAllSentSms"),
   GET_DRAFT("getAllDraftSms"),
   GET_CONVERSATIONS("getAllConversations"),
+  GET_RECIPIENT_ADDRESSES("getRecipientAddresses"),
+  GET_CONVERSATION_MESSAGES("getConversationMessages"),
+  GET_MMS_DATA("getMmsData"),
   SEND_SMS("sendSms"),
   SEND_MULTIPART_SMS("sendMultipartSms"),
   SEND_SMS_INTENT("sendSmsIntent"),
@@ -52,6 +55,9 @@ enum class SmsAction(private val methodName: String) {
       GET_SENT,
       GET_DRAFT,
       GET_CONVERSATIONS -> ActionType.GET_SMS
+      GET_RECIPIENT_ADDRESSES -> ActionType.GET_RECIPIENTS
+      GET_CONVERSATION_MESSAGES -> ActionType.GET_CONVERSATION_MESSAGES
+      GET_MMS_DATA -> ActionType.GET_MMS_DATA
       SEND_SMS,
       SEND_MULTIPART_SMS,
       SEND_SMS_INTENT,
@@ -83,12 +89,13 @@ enum class SmsAction(private val methodName: String) {
 }
 
 enum class ActionType {
-  GET_SMS, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
+  GET_SMS, GET_RECIPIENTS, GET_CONVERSATION_MESSAGES, GET_MMS_DATA, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
 }
 
 enum class ContentUri(val uri: Uri) {
   INBOX(Telephony.Sms.Inbox.CONTENT_URI),
   SENT(Telephony.Sms.Sent.CONTENT_URI),
   DRAFT(Telephony.Sms.Draft.CONTENT_URI),
-  CONVERSATIONS(Telephony.Sms.Conversations.CONTENT_URI);
+  CONVERSATIONS(Uri.parse("content://mms-sms/conversations?simple=true")),
+  MMS_DATA(Uri.parse("content://mms/part"));
 }

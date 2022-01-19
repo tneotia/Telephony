@@ -56,7 +56,7 @@ main() {
           onNewMessage: (message) {
             expect(message.body, mockIncomingMessage["message_body"]);
             expect(message.address, mockIncomingMessage["originating_address"]);
-            expect(message.status, SmsStatus.STATUS_COMPLETE);
+            expect(message.status, MessageStatus.STATUS_COMPLETE);
           },
           listenInBackground: false);
 
