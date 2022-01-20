@@ -14,6 +14,7 @@ enum class SmsAction(private val methodName: String) {
   SEND_SMS("sendSms"),
   SEND_MULTIPART_SMS("sendMultipartSms"),
   SEND_SMS_INTENT("sendSmsIntent"),
+  SEND_MMS("sendMms"),
   START_BACKGROUND_SERVICE("startBackgroundService"),
   DISABLE_BACKGROUND_SERVICE("disableBackgroundService"),
   BACKGROUND_SERVICE_INITIALIZED("backgroundServiceInitialized"),
@@ -62,6 +63,7 @@ enum class SmsAction(private val methodName: String) {
       SEND_MULTIPART_SMS,
       SEND_SMS_INTENT,
       NO_SUCH_METHOD -> ActionType.SEND_SMS
+      SEND_MMS -> ActionType.SEND_MMS
       START_BACKGROUND_SERVICE,
       DISABLE_BACKGROUND_SERVICE,
       BACKGROUND_SERVICE_INITIALIZED -> ActionType.BACKGROUND
@@ -89,7 +91,7 @@ enum class SmsAction(private val methodName: String) {
 }
 
 enum class ActionType {
-  GET_SMS, GET_RECIPIENTS, GET_CONVERSATION_MESSAGES, GET_MMS_DATA, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
+  GET_SMS, GET_RECIPIENTS, GET_CONVERSATION_MESSAGES, GET_MMS_DATA, SEND_SMS, SEND_MMS, BACKGROUND, GET, PERMISSION, CALL
 }
 
 enum class ContentUri(val uri: Uri) {

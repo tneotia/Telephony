@@ -11,6 +11,7 @@ object Constants {
 
   // Intent Actions
   const val ACTION_SMS_SENT = "plugins.shounakmulay.intent.ACTION_SMS_SENT"
+  const val ACTION_MMS_SENT = "plugins.shounakmulay.intent.ACTION_MMS_SENT"
   const val ACTION_SMS_DELIVERED = "plugins.shounakmulay.intent.ACTION_SMS_DELIVERED"
 
 
@@ -36,6 +37,7 @@ object Constants {
   const val HANDLE_BACKGROUND_MESSAGE = "handleBackgroundMessage"
   const val SMS_SENT = "smsSent"
   const val SMS_DELIVERED = "smsDelivered"
+  const val MMS_SENT = "mmsSent"
   
   // Invoke Method Arguments
   const val HANDLE = "handle"
@@ -48,10 +50,14 @@ object Constants {
   const val SORT_ORDER = "sort_order"
   const val MESSAGE_BODY = "message_body"
   const val ADDRESS = "address"
+  const val ADDRESSES = "addresses"
   const val LISTEN_STATUS = "listen_status"
   const val IDS = "ids"
   const val THREAD_ID = "threadId"
   const val MESSAGE_ID = "messageId"
+  const val ATTACHMENTS = "attachments"
+  const val SUBJECT = "message_subject"
+  const val TRANSACTION_ID = "transaction_id"
 
   const val TIMESTAMP = "timestamp"
   const val ORIGINATING_ADDRESS = "originating_address"

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
@@ -54,7 +56,7 @@ class Telephony {
 
   late MessageHandler _onNewMessage;
   late MessageHandler _onBackgroundMessages;
-  late SmsSendStatusListener _statusListener;
+  final Map<String, SmsSendStatusListener> _statusListeners = {};
 
   ///
   /// Gets a singleton instance of the [Telephony] class.
@@ -140,15 +142,22 @@ class Telephony {
 
   /// ## Do not call this method. This method is visible only for testing.
   @visibleForTesting
-  Future<dynamic> handler(MethodCall call) async {
+  Future<void> handler(MethodCall call) async {
     switch (call.method) {
       case ON_MESSAGE:
         final message = call.arguments["message"];
         return _onNewMessage(Message.fromMap(message, INCOMING_SMS_COLUMNS));
       case SMS_SENT:
-        return _statusListener(SendStatus.SENT);
+      case MMS_SENT:
+        try {
+          _statusListeners.entries.firstWhere((e) => e.key == call.arguments["transactionId"]).value.call(SendStatus.SENT);
+        } catch (_) {}
+        break;
       case SMS_DELIVERED:
-        return _statusListener(SendStatus.DELIVERED);
+        try {
+          _statusListeners.entries.firstWhere((e) => e.key == call.arguments["transactionId"]).value.call(SendStatus.DELIVERED);
+        } catch (_) {}
+        break;
     }
   }
 
@@ -269,7 +278,7 @@ class Telephony {
         List.empty();
   }
 
-  Future<List<String?>> getAddressesForConversation(List<int> recipientIds) async {
+  Future<List<String>> getAddressesForConversation(List<int> recipientIds) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
     final args = {
       "ids": recipientIds
@@ -342,14 +351,16 @@ class Telephony {
   }) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
     bool listenStatus = false;
+    final transactionId = randomString(9);
     if (statusListener != null) {
-      _statusListener = statusListener;
+      _statusListeners[transactionId] = statusListener;
       listenStatus = true;
     }
     final Map<String, dynamic> args = {
       "address": to,
       "message_body": message,
-      "listen_status": listenStatus
+      "listen_status": listenStatus,
+      "transaction_id": transactionId,
     };
     final String method = isMultipart ? SEND_MULTIPART_SMS : SEND_SMS;
     await _foregroundChannel.invokeMethod(method, args);
@@ -374,6 +385,33 @@ class Telephony {
       "message_body": message,
     };
     await _foregroundChannel.invokeMethod(SEND_SMS_INTENT, args);
+  }
+
+  Future<void> sendMms({
+    required List<String> to,
+    String? message,
+    String? subject,
+    required int threadId,
+    List<MmsAttachment> attachments = const [],
+    SmsSendStatusListener? statusListener,
+  }) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    bool listenStatus = false;
+    final transactionId = randomString(9);
+    if (statusListener != null) {
+      _statusListeners[transactionId] = statusListener;
+      listenStatus = true;
+    }
+    final Map<String, dynamic> args = {
+      "addresses": to,
+      "message_body": message,
+      "message_subject": subject,
+      "threadId": threadId,
+      "attachments": attachments.map((e) => e.toMap()).toList(),
+      "listen_status": listenStatus,
+      "transaction_id": transactionId,
+    };
+    await _foregroundChannel.invokeMethod(SEND_MMS, args);
   }
 
   ///
@@ -934,4 +972,29 @@ class Conversation {
       paOwnnumber.hashCode ^
       snippetType.hashCode ^
       binStatus.hashCode;
+}
+
+class MmsAttachment {
+  final Uint8List data;
+  final String mimeType;
+  final String name;
+
+  MmsAttachment({required this.data, required this.mimeType, required this.name});
+
+  Map<String, dynamic> toMap() {
+    return {
+      'data': this.data,
+      'mimeType': this.mimeType,
+      'name': this.name,
+    };
+  }
+}
+
+String randomString(int length) {
+  var rand = Random();
+  var codeUnits = List.generate(length, (index) {
+    return rand.nextInt(33) + 89;
+  });
+
+  return String.fromCharCodes(codeUnits);
 }

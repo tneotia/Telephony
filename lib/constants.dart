@@ -14,6 +14,7 @@ const GET_CONVERSATION_MESSAGES = "getConversationMessages";
 const GET_MMS_DATA = "getMmsData";
 const SEND_SMS = "sendSms";
 const SEND_MULTIPART_SMS = "sendMultipartSms";
+const SEND_MMS = "sendMms";
 const SEND_SMS_INTENT = "sendSmsIntent";
 const IS_SMS_CAPABLE = "isSmsCapable";
 const GET_CELLULAR_DATA_STATE = "getCellularDataState";
@@ -38,6 +39,7 @@ const DIAL_PHONE_NUMBER = "dialPhoneNumber";
 const ON_MESSAGE = "onMessage";
 const SMS_SENT = "smsSent";
 const SMS_DELIVERED = "smsDelivered";
+const MMS_SENT = "mmsSent";
 
 ///
 /// Possible parameters that can be fetched during a SMS query operation.

@@ -11,6 +11,11 @@ import android.os.Build
 import android.telephony.*
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
+import com.klinker.android.send_message.BroadcastUtils
+import com.klinker.android.send_message.Message
+import com.klinker.android.send_message.Settings
+import com.klinker.android.send_message.Transaction
+import com.shounakmulay.telephony.utils.Constants
 import com.shounakmulay.telephony.utils.Constants.ACTION_SMS_DELIVERED
 import com.shounakmulay.telephony.utils.Constants.ACTION_SMS_SENT
 import com.shounakmulay.telephony.utils.Constants.SMS_BODY
@@ -19,7 +24,6 @@ import com.shounakmulay.telephony.utils.Constants.SMS_SENT_BROADCAST_REQUEST_COD
 import com.shounakmulay.telephony.utils.Constants.SMS_TO
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 
 
 class SmsController(private val context: Context) {
@@ -58,32 +62,50 @@ class SmsController(private val context: Context) {
   }
 
   // SEND SMS
-  fun sendSms(destinationAddress: String, messageBody: String, listenStatus: Boolean) {
+  fun sendSms(destinationAddress: String, messageBody: String, listenStatus: Boolean, transactionId: String) {
     val smsManager = getSmsManager()
     if (listenStatus) {
-      val pendingIntents = getPendingIntents()
+      val pendingIntents = getPendingIntents(transactionId)
       smsManager.sendTextMessage(destinationAddress, null, messageBody, pendingIntents.first, pendingIntents.second)
     } else {
       smsManager.sendTextMessage(destinationAddress, null, messageBody, null, null)
     }
   }
 
-  fun sendMultipartSms(destinationAddress: String, messageBody: String, listenStatus: Boolean) {
+  fun sendMultipartSms(destinationAddress: String, messageBody: String, listenStatus: Boolean, transactionId: String) {
     val smsManager = getSmsManager()
     val messageParts = smsManager.divideMessage(messageBody)
     if (listenStatus) {
-      val pendingIntents = getMultiplePendingIntents(messageParts.size)
+      val pendingIntents = getMultiplePendingIntents(messageParts.size, transactionId)
       smsManager.sendMultipartTextMessage(destinationAddress, null, messageParts, pendingIntents.first, pendingIntents.second)
     } else {
       smsManager.sendMultipartTextMessage(destinationAddress, null, messageParts, null, null)
     }
   }
 
-  private fun getMultiplePendingIntents(size: Int): Pair<ArrayList<PendingIntent>, ArrayList<PendingIntent>> {
+  fun sendMms(destinationAddress: Array<String>, threadId: Long, messageBody: String?, messageSubject: String?, attachments: List<HashMap<String, Any>>, listenStatus: Boolean, transactionId: String) {
+    val settings = Settings()
+    settings.useSystemSending = true
+    val transaction = Transaction(context.applicationContext, settings)
+    val message = Message(messageBody, destinationAddress, messageSubject)
+    if (attachments.isNotEmpty()) {
+      for (attachment in attachments) {
+        message.addMedia(attachment["data"] as ByteArray?, attachment["mimeType"] as String?, attachment["name"] as String?)
+      }
+    }
+    if (listenStatus) {
+      val intent = Intent(Constants.ACTION_MMS_SENT)
+      intent.putExtra("transactionId", transactionId)
+      transaction.setExplicitBroadcastForSentMms(intent)
+    }
+    transaction.sendNewMessage(message, threadId)
+  }
+
+  private fun getMultiplePendingIntents(size: Int, transactionId: String): Pair<ArrayList<PendingIntent>, ArrayList<PendingIntent>> {
     val sentPendingIntents = arrayListOf<PendingIntent>()
     val deliveredPendingIntents = arrayListOf<PendingIntent>()
     for (i in 1..size) {
-      val pendingIntents = getPendingIntents()
+      val pendingIntents = getPendingIntents(transactionId)
       sentPendingIntents.add(pendingIntents.first)
       deliveredPendingIntents.add(pendingIntents.second)
     }
@@ -99,17 +121,19 @@ class SmsController(private val context: Context) {
     context.applicationContext.startActivity(intent)
   }
 
-  private fun getPendingIntents(): Pair<PendingIntent, PendingIntent> {
+  private fun getPendingIntents(transactionId: String): Pair<PendingIntent, PendingIntent> {
     val sentIntent = Intent(ACTION_SMS_SENT).apply {
       `package` = context.applicationContext.packageName
       flags = Intent.FLAG_RECEIVER_REGISTERED_ONLY
     }
+    sentIntent.putExtra("transactionId", transactionId)
     val sentPendingIntent = PendingIntent.getBroadcast(context, SMS_SENT_BROADCAST_REQUEST_CODE, sentIntent, PendingIntent.FLAG_MUTABLE)
 
     val deliveredIntent = Intent(ACTION_SMS_DELIVERED).apply {
       `package` = context.applicationContext.packageName
       flags = Intent.FLAG_RECEIVER_REGISTERED_ONLY
     }
+    deliveredIntent.putExtra("transactionId", transactionId)
     val deliveredPendingIntent = PendingIntent.getBroadcast(context, SMS_DELIVERED_BROADCAST_REQUEST_CODE, deliveredIntent, PendingIntent.FLAG_MUTABLE)
 
     return Pair(sentPendingIntent, deliveredPendingIntent)

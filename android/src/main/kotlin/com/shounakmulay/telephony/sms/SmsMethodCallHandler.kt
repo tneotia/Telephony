@@ -12,6 +12,8 @@ import com.shounakmulay.telephony.PermissionsController
 import com.shounakmulay.telephony.utils.ActionType
 import com.shounakmulay.telephony.utils.Constants
 import com.shounakmulay.telephony.utils.Constants.ADDRESS
+import com.shounakmulay.telephony.utils.Constants.ADDRESSES
+import com.shounakmulay.telephony.utils.Constants.ATTACHMENTS
 import com.shounakmulay.telephony.utils.Constants.BACKGROUND_HANDLE
 import com.shounakmulay.telephony.utils.Constants.CALL_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONVERSATION_MESSAGES_PROJECTION
@@ -25,6 +27,7 @@ import com.shounakmulay.telephony.utils.Constants.ILLEGAL_ARGUMENT
 import com.shounakmulay.telephony.utils.Constants.LISTEN_STATUS
 import com.shounakmulay.telephony.utils.Constants.MESSAGE_BODY
 import com.shounakmulay.telephony.utils.Constants.MESSAGE_ID
+import com.shounakmulay.telephony.utils.Constants.MMS_SENT
 import com.shounakmulay.telephony.utils.Constants.PERMISSION_DENIED
 import com.shounakmulay.telephony.utils.Constants.PERMISSION_DENIED_MESSAGE
 import com.shounakmulay.telephony.utils.Constants.PERMISSION_REQUEST_CODE
@@ -42,7 +45,9 @@ import com.shounakmulay.telephony.utils.Constants.SMS_QUERY_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_SEND_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_SENT
 import com.shounakmulay.telephony.utils.Constants.SORT_ORDER
+import com.shounakmulay.telephony.utils.Constants.SUBJECT
 import com.shounakmulay.telephony.utils.Constants.THREAD_ID
+import com.shounakmulay.telephony.utils.Constants.TRANSACTION_ID
 import com.shounakmulay.telephony.utils.Constants.WRONG_METHOD_TYPE
 import com.shounakmulay.telephony.utils.ContentUri
 import com.shounakmulay.telephony.utils.SmsAction
@@ -73,9 +78,13 @@ class SmsMethodCallHandler(
   private var threadId: Int? = null
   private var messageId: Int? = null
 
-  private lateinit var messageBody: String
-  private lateinit var address: String
+  private var messageBody: String? = null
+  private var messageSubject: String? = null
+  private var address: String? = null
   private var listenStatus: Boolean = false
+  private var addresses: Array<String>? = null
+  private var attachments: List<HashMap<String, Any>>? = null
+  private var transactionId: String? = null
 
   private var setupHandle: Long = -1
   private var backgroundHandle: Long = -1
@@ -151,9 +160,31 @@ class SmsMethodCallHandler(
 
           this.messageBody = messageBody
           this.address = address
+          this.transactionId = call.argument<String>(TRANSACTION_ID)
 
           listenStatus = call.argument(LISTEN_STATUS) ?: false
         }
+        handleMethod(action, SMS_SEND_REQUEST_CODE)
+      }
+      ActionType.SEND_MMS -> {
+        val messageBody = call.argument<String>(MESSAGE_BODY)
+        val addresses = call.argument<List<String>>(ADDRESSES)
+        val attachments = call.argument<List<HashMap<String, Any>>>(ATTACHMENTS)
+        val threadId = call.argument<Int>(THREAD_ID)
+        val subject = call.argument<String>(SUBJECT)
+        if (addresses.isNullOrEmpty()) {
+          result.error(ILLEGAL_ARGUMENT, Constants.MESSAGE_OR_ADDRESS_CANNOT_BE_NULL, null)
+          return
+        }
+
+        this.messageBody = messageBody
+        this.addresses = addresses.toTypedArray()
+        this.attachments = attachments
+        this.threadId = threadId
+        this.messageSubject = subject
+        this.transactionId = call.argument<String>(TRANSACTION_ID)
+
+        listenStatus = call.argument(LISTEN_STATUS) ?: false
         handleMethod(action, SMS_SEND_REQUEST_CODE)
       }
       ActionType.BACKGROUND -> {
@@ -206,6 +237,7 @@ class SmsMethodCallHandler(
         ActionType.GET_CONVERSATION_MESSAGES -> handleGetSmsActions(smsAction)
         ActionType.GET_MMS_DATA -> handleGetMmsDataAction()
         ActionType.SEND_SMS -> handleSendSmsActions(smsAction)
+        ActionType.SEND_MMS -> handleSendMmsAction()
         ActionType.BACKGROUND -> handleBackgroundActions(smsAction)
         ActionType.GET -> handleGetActions(smsAction)
         ActionType.PERMISSION -> result.success(true)
@@ -349,11 +381,22 @@ class SmsMethodCallHandler(
       context.applicationContext.registerReceiver(this, intentFilter)
     }
     when (smsAction) {
-      SmsAction.SEND_SMS -> smsController.sendSms(address, messageBody, listenStatus)
-      SmsAction.SEND_MULTIPART_SMS -> smsController.sendMultipartSms(address, messageBody, listenStatus)
-      SmsAction.SEND_SMS_INTENT -> smsController.sendSmsIntent(address, messageBody)
+      SmsAction.SEND_SMS -> smsController.sendSms(address!!, messageBody!!, listenStatus, transactionId!!)
+      SmsAction.SEND_MULTIPART_SMS -> smsController.sendMultipartSms(address!!, messageBody!!, listenStatus, transactionId!!)
+      SmsAction.SEND_SMS_INTENT -> smsController.sendSmsIntent(address!!, messageBody!!)
       else -> throw IllegalArgumentException()
     }
+    result.success(null)
+  }
+
+  private fun handleSendMmsAction() {
+    if (listenStatus) {
+      val intentFilter = IntentFilter().apply {
+        addAction(Constants.ACTION_MMS_SENT)
+      }
+      context.applicationContext.registerReceiver(this, intentFilter)
+    }
+    smsController.sendMms(addresses!!, threadId!!.toLong(), messageBody, messageSubject, attachments!!, listenStatus, transactionId!!)
     result.success(null)
   }
 
@@ -454,6 +497,7 @@ class SmsMethodCallHandler(
       SmsAction.SEND_SMS,
       SmsAction.SEND_MULTIPART_SMS,
       SmsAction.SEND_SMS_INTENT,
+      SmsAction.SEND_MMS,
       SmsAction.START_BACKGROUND_SERVICE,
       SmsAction.BACKGROUND_SERVICE_INITIALIZED,
       SmsAction.DISABLE_BACKGROUND_SERVICE,
@@ -548,10 +592,16 @@ class SmsMethodCallHandler(
 
   override fun onReceive(ctx: Context?, intent: Intent?) {
     if (intent != null) {
+      val args = HashMap<String, String?>()
+      args["transactionId"] = intent.getStringExtra("transactionId")
       when (intent.action) {
-        Constants.ACTION_SMS_SENT -> foregroundChannel.invokeMethod(SMS_SENT, null)
+        Constants.ACTION_SMS_SENT -> foregroundChannel.invokeMethod(SMS_SENT, args)
         Constants.ACTION_SMS_DELIVERED -> {
-          foregroundChannel.invokeMethod(SMS_DELIVERED, null)
+          foregroundChannel.invokeMethod(SMS_DELIVERED, args)
+          context.unregisterReceiver(this)
+        }
+        Constants.ACTION_MMS_SENT -> {
+          foregroundChannel.invokeMethod(MMS_SENT, args)
           context.unregisterReceiver(this)
         }
       }
