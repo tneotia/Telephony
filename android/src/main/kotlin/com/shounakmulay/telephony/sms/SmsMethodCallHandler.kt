@@ -353,9 +353,9 @@ class SmsMethodCallHandler(
             context.contentResolver.openInputStream(ContentUris.withAppendedId(ContentUri.MMS_DATA.uri, partID)).use { inputStream ->
               //Throwing an exception if the stream couldn't be opened
               if(inputStream == null) throw IOException("Failed to open stream")
-              attachmentData["filename"] = fileName
-              attachmentData["bytes"] = inputStream.readBytes()
-              attachmentData["type"] = contentType
+              attachmentData["name"] = fileName
+              attachmentData["data"] = inputStream.readBytes()
+              attachmentData["mimeType"] = contentType
               messageAttachments.add(attachmentData)
             }
           } catch(exception: IOException) {

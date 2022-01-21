@@ -3,12 +3,18 @@ package com.shounakmulay.telephony.sms
 import android.app.ActivityManager
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.provider.Telephony
 import android.telephony.SmsMessage
+import com.klinker.android.send_message.MmsReceivedReceiver
 import com.shounakmulay.telephony.utils.Constants
+import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONVERSATION_MESSAGES_PROJECTION
 import com.shounakmulay.telephony.utils.Constants.HANDLE
 import com.shounakmulay.telephony.utils.Constants.HANDLE_BACKGROUND_MESSAGE
 import com.shounakmulay.telephony.utils.Constants.MESSAGE
@@ -21,6 +27,7 @@ import com.shounakmulay.telephony.utils.Constants.SHARED_PREFS_BACKGROUND_SETUP_
 import com.shounakmulay.telephony.utils.Constants.SHARED_PREFS_DISABLE_BACKGROUND_EXE
 import com.shounakmulay.telephony.utils.Constants.STATUS
 import com.shounakmulay.telephony.utils.Constants.TIMESTAMP
+import com.shounakmulay.telephony.utils.ContentUri
 import com.shounakmulay.telephony.utils.SmsAction
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
@@ -30,6 +37,7 @@ import io.flutter.embedding.engine.loader.FlutterLoader
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
+import java.io.IOException
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
@@ -79,6 +87,130 @@ class IncomingSmsReceiver : BroadcastReceiver() {
       }
     }
   }
+
+  private fun processInBackground(context: Context, sms: HashMap<String, Any?>) {
+    IncomingSmsHandler.apply {
+      if (!isIsolateRunning.get()) {
+        initialize(context)
+        val preferences = backgroundContext.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+        val backgroundCallbackHandle = preferences.getLong(SHARED_PREFS_BACKGROUND_SETUP_HANDLE, 0)
+        startBackgroundIsolate(backgroundContext, backgroundCallbackHandle)
+        backgroundMessageQueue.add(sms)
+      } else {
+        executeDartCallbackInBackgroundIsolate(context, sms)
+      }
+    }
+  }
+}
+
+class CustomMmsReceivedReceiver : MmsReceivedReceiver() {
+
+  override fun onMessageReceived(context: Context, messageUri: Uri) {
+    //Getting the standard projection with the thread ID
+    val projection: MutableList<String> = DEFAULT_CONVERSATION_MESSAGES_PROJECTION.toMutableList()
+    projection.add(Telephony.Mms.THREAD_ID)
+    //Querying for message information
+    val cursorMMS = context.contentResolver.query(messageUri, arrayOf("*"), null, null, null)
+
+    if (cursorMMS == null || !cursorMMS.moveToFirst()) {
+      cursorMMS?.close()
+      return
+    }
+
+    val messageId = cursorMMS.getLong(cursorMMS.getColumnIndexOrThrow(Telephony.Mms._ID))
+    var sender: String? = null
+
+    context.contentResolver.query(
+            Telephony.Mms.CONTENT_URI.buildUpon().appendPath(messageId.toString()).appendPath("addr").build(), arrayOf(Telephony.Mms.Addr.ADDRESS),
+            "type=137 AND msg_id=$messageId", null, null, null).use { cursor ->
+      if(cursor == null || !cursor.moveToFirst()) return
+
+      var rawVal: String
+      if (cursor.moveToFirst()) {
+        do {
+          rawVal = cursor.getString(cursor.getColumnIndexOrThrow("address"))
+          if (rawVal != null) {
+            sender = rawVal
+            // Use the first one found if more than one
+            break
+          }
+        } while (cursor.moveToNext())
+      }
+      cursor.close()
+    }
+    val messageTextSB = StringBuilder()
+    val messageAttachments = ArrayList<HashMap<String, Any?>>()
+
+    context.contentResolver.query(ContentUri.MMS_DATA.uri, Constants.DEFAULT_MMS_DATA_PROJECTION, Telephony.Mms.Part.MSG_ID + " = ?", arrayOf(messageId.toString()), null).use { cursorMMSData ->
+      if(cursorMMSData == null || !cursorMMSData.moveToFirst()) return
+      do {
+        //Reading the part data
+        val partID = cursorMMSData.getLong(cursorMMSData.getColumnIndexOrThrow(Telephony.Mms.Part._ID))
+        val contentType = cursorMMSData.getString(cursorMMSData.getColumnIndexOrThrow(Telephony.Mms.Part.CONTENT_TYPE))
+        var fileName = cursorMMSData.getString(cursorMMSData.getColumnIndexOrThrow(Telephony.Mms.Part.NAME))
+        fileName = fileName?.replace('\u0000', '?')?.replace('/', '-') ?: "unnamed_attachment"
+
+        // Checking if the part is text
+        if ("text/plain" == contentType) {
+          //Reading the text
+          val data = cursorMMSData.getString(cursorMMSData.getColumnIndexOrThrow(Telephony.Mms.Part._DATA))
+          val body: String? = if (data != null) {
+            try {
+              context.contentResolver.openInputStream(ContentUris.withAppendedId(ContentUri.MMS_DATA.uri, partID)).use { inputStream ->
+                //Throwing an exception if the stream couldn't be opened
+                if(inputStream == null) throw IOException("Failed to open stream")
+                inputStream.bufferedReader().readLines().joinToString("\n")
+              }
+            } catch(exception: IOException) {
+              exception.printStackTrace()
+              null
+            }
+          } else {
+            cursorMMSData.getString(cursorMMSData.getColumnIndexOrThrow(Telephony.Mms.Part.TEXT))
+          }
+
+          //Appending the text
+          if (body != null) messageTextSB.append(body)
+        } else if("application/smil" != contentType) {
+          val attachmentData = HashMap<String, Any?>()
+          try {
+            context.contentResolver.openInputStream(ContentUris.withAppendedId(ContentUri.MMS_DATA.uri, partID)).use { inputStream ->
+              //Throwing an exception if the stream couldn't be opened
+              if(inputStream == null) throw IOException("Failed to open stream")
+              attachmentData["filename"] = fileName
+              attachmentData["bytes"] = inputStream.readBytes()
+              attachmentData["type"] = contentType
+              messageAttachments.add(attachmentData)
+            }
+          } catch(exception: IOException) {
+            exception.printStackTrace()
+            continue
+          }
+        }
+      } while(cursorMMSData.moveToNext())
+    }
+    val finalData = HashMap<String, Any?>()
+    finalData["sender"] = sender
+    finalData["text"] = messageTextSB.toString()
+    finalData["attachments"] = messageAttachments
+    for (columnName in cursorMMS.columnNames) {
+      val value = cursorMMS.getString(cursorMMS.getColumnIndexOrThrow(columnName))
+      finalData[columnName] = value
+    }
+    if (IncomingSmsHandler.isApplicationForeground(context)) {
+      Handler(Looper.getMainLooper()).post {
+        IncomingSmsReceiver.foregroundSmsChannel?.invokeMethod(ON_MESSAGE, finalData)
+      }
+    } else {
+      val preferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+      val disableBackground = preferences.getBoolean(SHARED_PREFS_DISABLE_BACKGROUND_EXE, false)
+      if (!disableBackground) {
+        processInBackground(context, finalData)
+      }
+    }
+  }
+
+  override fun onError(context: Context, error: String) {}
 
   private fun processInBackground(context: Context, sms: HashMap<String, Any?>) {
     IncomingSmsHandler.apply {

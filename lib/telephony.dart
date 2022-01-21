@@ -146,6 +146,11 @@ class Telephony {
     switch (call.method) {
       case ON_MESSAGE:
         final message = call.arguments["message"];
+        if (message == null) {
+          final toReturn = Message.fromMap(call.arguments, List.from(DEFAULT_SMS_COLUMNS)..addAll([MessageColumn.SUBJECT_2, MessageColumn.MESSAGE_BOX, MessageColumn.TYPE]));
+          toReturn.mmsData = MmsData.fromMap(call.arguments);
+          return _onNewMessage(toReturn);
+        }
         return _onNewMessage(Message.fromMap(message, INCOMING_SMS_COLUMNS));
       case SMS_SENT:
       case MMS_SENT:
@@ -301,15 +306,15 @@ class Telephony {
         List.empty();
   }
 
-  Future<dynamic> getMmsData(int messageId) async {
+  Future<MmsData> getMmsData(int messageId) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
     final args = {
       "messageId": messageId
     };
 
-    final messages = await _foregroundChannel.invokeMethod<Map?>(GET_MMS_DATA, args);
+    final data = await _foregroundChannel.invokeMethod<Map?>(GET_MMS_DATA, args);
 
-    print(messages.toString());
+    return MmsData.fromMap(data ?? {});
   }
 
   Map<String, dynamic> _getArguments(List<_TelephonyColumn> columns,
@@ -647,6 +652,7 @@ class Message {
   int? threadId;
   MessageType? type;
   MessageStatus? status;
+  MmsData? mmsData;
 
   /// ## Do not call this method. This method is visible only for testing.
   @visibleForTesting
@@ -987,6 +993,32 @@ class MmsAttachment {
       'mimeType': this.mimeType,
       'name': this.name,
     };
+  }
+
+  factory MmsAttachment.fromMap(Map<dynamic, dynamic> rawMap) {
+    final map = Map.castFrom<dynamic, dynamic, String, dynamic>(rawMap);
+    return MmsAttachment(
+      data: map['data'] as Uint8List,
+      mimeType: map['mimeType'].toString(),
+      name: map['name'].toString(),
+    );
+  }
+}
+
+class MmsData {
+  final String sender;
+  final String text;
+  final List<MmsAttachment> attachments;
+
+  MmsData({required this.sender, required this.text, required this.attachments});
+
+  factory MmsData.fromMap(Map rawMap) {
+    final map = Map.castFrom<dynamic, dynamic, String, dynamic>(rawMap);
+    return MmsData(
+      sender: map['sender'].toString(),
+      text: map['text'].toString(),
+      attachments: (map['attachments'] as List<dynamic>? ?? []).map((e) => MmsAttachment.fromMap(e)).toList(),
+    );
   }
 }
 
