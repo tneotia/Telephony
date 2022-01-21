@@ -412,18 +412,16 @@ main() {
         verify(methodChannel.invokeMethod(GET_ALL_CONVERSATIONS, args))
             .called(1);
         expect(
-            conversations[0]
-                .equals(Conversation.fromMap(mockConversations[0])),
+            conversations[0] == Conversation.fromMap(mockConversations[0]),
             isTrue);
         expect(
-            conversations[1]
-                .equals(Conversation.fromMap(mockConversations[1])),
+            conversations[1] == Conversation.fromMap(mockConversations[1]),
             isTrue);
       });
 
       test("conversations with filter", () async {
         final ConversationFilter filter =
-            ConversationFilter.where(ConversationColumn.MSG_COUNT)
+            ConversationFilter.where(ConversationColumn.MESSAGE_COUNT)
                 .equals("4")
                 .and(ConversationColumn.THREAD_ID)
                 .greaterThan("12");
@@ -448,12 +446,10 @@ main() {
         verify(await methodChannel.invokeMethod(GET_ALL_CONVERSATIONS, args))
             .called(1);
         expect(
-            conversations[0]
-                .equals(Conversation.fromMap(mockConversations[0])),
+            conversations[0] == Conversation.fromMap(mockConversations[0]),
             isTrue);
         expect(
-            conversations[1]
-                .equals(Conversation.fromMap(mockConversations[1])),
+            conversations[1] == Conversation.fromMap(mockConversations[1]),
             isTrue);
       });
     });
@@ -484,7 +480,7 @@ main() {
         final ConversationFilter statement =
             ConversationFilter.where(ConversationColumn.THREAD_ID)
                 .lessThanOrEqualTo("1")
-                .or(ConversationColumn.MSG_COUNT)
+                .or(ConversationColumn.MESSAGE_COUNT)
                 .notEqualTo("6")
                 .and(ConversationColumn.SNIPPET)
                 .not
