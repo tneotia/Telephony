@@ -8,9 +8,13 @@ enum class SmsAction(private val methodName: String) {
   GET_SENT("getAllSentSms"),
   GET_DRAFT("getAllDraftSms"),
   GET_CONVERSATIONS("getAllConversations"),
+  GET_RECIPIENT_ADDRESSES("getRecipientAddresses"),
+  GET_CONVERSATION_MESSAGES("getConversationMessages"),
+  GET_MMS_DATA("getMmsData"),
   SEND_SMS("sendSms"),
   SEND_MULTIPART_SMS("sendMultipartSms"),
   SEND_SMS_INTENT("sendSmsIntent"),
+  SEND_MMS("sendMms"),
   START_BACKGROUND_SERVICE("startBackgroundService"),
   DISABLE_BACKGROUND_SERVICE("disableBackgroundService"),
   BACKGROUND_SERVICE_INITIALIZED("backgroundServiceInitialized"),
@@ -52,10 +56,14 @@ enum class SmsAction(private val methodName: String) {
       GET_SENT,
       GET_DRAFT,
       GET_CONVERSATIONS -> ActionType.GET_SMS
+      GET_RECIPIENT_ADDRESSES -> ActionType.GET_RECIPIENTS
+      GET_CONVERSATION_MESSAGES -> ActionType.GET_CONVERSATION_MESSAGES
+      GET_MMS_DATA -> ActionType.GET_MMS_DATA
       SEND_SMS,
       SEND_MULTIPART_SMS,
       SEND_SMS_INTENT,
       NO_SUCH_METHOD -> ActionType.SEND_SMS
+      SEND_MMS -> ActionType.SEND_MMS
       START_BACKGROUND_SERVICE,
       DISABLE_BACKGROUND_SERVICE,
       BACKGROUND_SERVICE_INITIALIZED -> ActionType.BACKGROUND
@@ -83,12 +91,13 @@ enum class SmsAction(private val methodName: String) {
 }
 
 enum class ActionType {
-  GET_SMS, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
+  GET_SMS, GET_RECIPIENTS, GET_CONVERSATION_MESSAGES, GET_MMS_DATA, SEND_SMS, SEND_MMS, BACKGROUND, GET, PERMISSION, CALL
 }
 
 enum class ContentUri(val uri: Uri) {
   INBOX(Telephony.Sms.Inbox.CONTENT_URI),
   SENT(Telephony.Sms.Sent.CONTENT_URI),
   DRAFT(Telephony.Sms.Draft.CONTENT_URI),
-  CONVERSATIONS(Telephony.Sms.Conversations.CONTENT_URI);
+  CONVERSATIONS(Uri.parse("content://mms-sms/conversations?simple=true")),
+  MMS_DATA(Uri.parse("content://mms/part"));
 }

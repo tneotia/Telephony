@@ -17,27 +17,27 @@ abstract class Filter<T, K> {
 /// Public constructor:
 ///
 /// SmsFilter.where();
-class SmsFilter implements Filter<SmsFilterStatement, SmsColumn> {
+class SmsFilter implements Filter<SmsFilterStatement, MessageColumn> {
   final String _filter;
   final List<String> _filterArgs;
 
   SmsFilter._(this._filter, this._filterArgs);
 
-  static SmsFilterStatement where(SmsColumn column) =>
+  static SmsFilterStatement where(MessageColumn column) =>
       SmsFilterStatement._(column._columnName);
 
   /// Joins two filter statements by the AND operator.
-  SmsFilterStatement and(SmsColumn column) {
+  SmsFilterStatement and(MessageColumn column) {
     return _addCombineOperator(column, " AND");
   }
 
   /// Joins to filter statements by the OR operator.
   @override
-  SmsFilterStatement or(SmsColumn column) {
+  SmsFilterStatement or(MessageColumn column) {
     return _addCombineOperator(column, " OR");
   }
 
-  SmsFilterStatement _addCombineOperator(SmsColumn column, String operator) {
+  SmsFilterStatement _addCombineOperator(MessageColumn column, String operator) {
     return SmsFilterStatement._withPreviousFilter("$_filter $operator",
         column._name, List.from(_filterArgs, growable: true));
   }
